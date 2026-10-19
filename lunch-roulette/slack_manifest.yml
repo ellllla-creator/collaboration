@@ -1,0 +1,32 @@
+display_information:
+  name: Lunch Roulette
+  description: Random lunch pairings for the SFO office (Mon / Tue / Thu)
+  background_color: "#362d59"
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: true
+  bot_user:
+    display_name: Lunch Roulette
+    always_online: true
+  slash_commands:
+    - command: /lunch-roulette
+      description: Join, leave, or check Lunch Roulette
+      usage_hint: "join [mon tue thu] | leave [days] | status"
+      should_escape: false
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - commands
+      - channels:read   # check membership of the SFO channel
+      - groups:read     # ...if that channel is private
+      - im:write
+settings:
+  event_subscriptions:
+    bot_events:
+      - app_home_opened
+  interactivity:
+    is_enabled: true
+  socket_mode_enabled: true

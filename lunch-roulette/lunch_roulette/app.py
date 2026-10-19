@@ -16,8 +16,10 @@ from datetime import date, datetime, timedelta
 from typing import List, Optional
 from zoneinfo import ZoneInfo
 
+import sentry_sdk
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from sentry_sdk.crons import monitor
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
@@ -26,8 +28,17 @@ from .pairing import make_groups
 
 log = logging.getLogger("lunch_roulette")
 
+# Errors (including log.exception / log.error calls) are reported to Sentry.
+# With SENTRY_DSN unset this is a no-op, so local runs and tests send nothing.
+sentry_sdk.init(
+    dsn=os.environ.get("SENTRY_DSN"),
+    environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
+    traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0")),
+)
+
 TZ = ZoneInfo(os.environ.get("LUNCH_TZ", "America/Los_Angeles"))
 PAIR_HOUR = int(os.environ.get("LUNCH_PAIR_HOUR", "9"))
+CRON_SCHEDULE = f"0 {PAIR_HOUR} * * 1,2,4"  # Mon, Tue, Thu
 # Only members of this channel (e.g. #sfo-office) may opt in. Unset = anyone.
 SFO_CHANNEL_ID = os.environ.get("SFO_CHANNEL_ID")
 # Try not to re-pair people who had lunch together within this many days.
@@ -222,6 +233,21 @@ def run_pairing(today: Optional[date] = None, dry_run: bool = False) -> List[Lis
     return groups
 
 
+# Sentry Cron Monitor: alerts if the 9am run fails, or doesn't happen at all
+# (e.g. the bot is down). The monitor is created in Sentry on first check-in.
+@monitor(
+    monitor_slug="lunch-roulette-pairing",
+    monitor_config={
+        "schedule": {"type": "crontab", "value": CRON_SCHEDULE},
+        "timezone": str(TZ),
+        "checkin_margin": 60,  # minutes; matches misfire_grace_time below
+        "max_runtime": 15,
+    },
+)
+def scheduled_pairing():
+    run_pairing()
+
+
 def main():
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
@@ -235,7 +261,7 @@ def main():
 
     scheduler = BackgroundScheduler(timezone=TZ)
     scheduler.add_job(
-        run_pairing,
+        scheduled_pairing,
         CronTrigger(day_of_week="mon,tue,thu", hour=PAIR_HOUR, minute=0, timezone=TZ),
         misfire_grace_time=60 * 60,  # if the bot was briefly down at 9:00, still run by 10:00
         coalesce=True,

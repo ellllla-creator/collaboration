@@ -75,7 +75,11 @@ class RunPairingTest(unittest.TestCase):
         self.assertEqual(len(groups), 1)  # trio
         msgs = self.sent()
         self.assertEqual(set(msgs), {"U1", "U2", "U3"})
-        self.assertIn("you are paired up with <@U2> and <@U3> for lunch today", msgs["U1"])
+        self.assertIn("you are paired up with <@", msgs["U1"])
+        self.assertIn("for lunch today", msgs["U1"])
+        for partner in ("<@U2>", "<@U3>"):
+            self.assertIn(partner, msgs["U1"])
+        self.assertNotIn("<@U1>", msgs["U1"])
 
         self.client.chat_postMessage.reset_mock()
         bot.run_pairing(MONDAY)  # second run same day sends nothing

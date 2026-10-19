@@ -55,6 +55,21 @@ It uses Socket Mode, so it needs no public URL — just a long-running process
 | `LUNCH_NO_REPEAT_DAYS` | `28` | Avoid repeat partners within this window |
 | `LUNCH_DB_PATH` | `lunch_roulette.db` | SQLite file |
 
+### Sentry
+
+The bot reports errors to Sentry and checks in a
+[Cron Monitor](https://docs.sentry.io/product/crons/) (`lunch-roulette-pairing`)
+on every 9am run, so you get alerted if pairing fails or doesn't run at all.
+Create a Python project in Sentry, then set:
+
+| Env var | Default | |
+|---|---|---|
+| `SENTRY_DSN` | unset (Sentry off) | The project's DSN (*Settings → Client Keys*) |
+| `SENTRY_ENVIRONMENT` | `production` | Environment shown in Sentry |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0` | Set e.g. `1.0` to also send performance traces |
+
+The cron monitor is created in Sentry automatically on the first scheduled run.
+
 ### Handy for testing
 
 ```bash
